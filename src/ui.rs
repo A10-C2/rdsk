@@ -127,6 +127,7 @@ impl App {
         // cleanup
         disable_raw_mode()?;
         stdout().execute(LeaveAlternateScreen)?;
+        println!("clean up finished...");
 
         Ok(())
     }
