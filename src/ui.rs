@@ -7,7 +7,7 @@ use crate::helpers::format_number;
 use crate::scanner::{UserProfile, scan_users};
 use crossterm::{
     ExecutableCommand,
-    event::{Event, KeyCode, KeyEventKind, poll, read}, // don't forget add the key press check
+    event::{Event, KeyCode, KeyEventKind, poll, read},
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::layout::Alignment;
