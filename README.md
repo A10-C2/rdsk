@@ -1,5 +1,5 @@
 # rdsk
-A terminal based disk space analyzer written in rsut. Scans user profiles under `C:\Users` and breaks down disk usage by category.
+A terminal based disk space analyzer written in rust. Scans user profiles under `C:\Users` and breaks down disk usage by category.
 - Total Size
 - Appdata local
 - Appdata roaming
