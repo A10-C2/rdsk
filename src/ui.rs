@@ -7,16 +7,16 @@ use crate::helpers::format_number;
 use crate::scanner::{UserProfile, scan_users};
 use crossterm::{
     ExecutableCommand,
-    event::{Event, KeyCode, KeyEvent, KeyEventKind, poll, read},
+    event::{Event, KeyCode, KeyEvent, KeyEventKind, poll, read}, // don't forget add the key press check
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::layout::{Alignment, Margin};
+use ratatui::layout::{Alignment, Margin}; // will i ever use margin, who knows
 use ratatui::widgets::Paragraph;
 use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
-    widgets::{Block, Borders, HighlightSpacing::Never, List, ListState, Padding},
+    widgets::{Block, Borders, List, ListState, Padding},
 };
 
 pub enum AppState {
@@ -44,6 +44,8 @@ impl App {
     pub fn new() -> Self {
         let (tx, rx) = std::sync::mpsc::channel();
         let path = PathBuf::from(r"C:\Users");
+        // more annoying than it should have been, dont fucking touch
+        // REM look into this more. already forgot how move works 4 hours later
         std::thread::spawn(move || {
             // scan
             let users = match scan_users(&path) {
@@ -55,6 +57,7 @@ impl App {
             };
             //send res through tx
             tx.send(users).ok();
+            // safe to touch again
         });
 
         App {
@@ -114,6 +117,7 @@ impl App {
                 },
             }
             // fps count
+            // dont forget that spinner is directly tied to current_frame
             self.current_frame += 1;
             if self.current_frame >= 40 {
                 self.current_frame = 0
@@ -143,9 +147,11 @@ impl App {
 
     fn handle_input(&mut self) {
         // real input handler
+        // update lol nevermind
         todo!();
     }
 
+    // probably dont need this shit
     fn render_detailed(&self, frame: &mut Frame) {
         let layout = Layout::new(
             Direction::Horizontal,
@@ -190,12 +196,13 @@ fn render_overview(
     )
     .areas(status);
 
+    // before investing in $rope, look here
     let items: Vec<String> = users
         .iter()
         .map(|u| {
             let username = u.username.to_string();
             let total_size = format_number(u.total_size);
-            format!("{:<10} {:<4}", username, total_size) // List formatting
+            format!("{:<10} {:<4}", username, total_size)
         })
         .collect();
 
@@ -224,3 +231,11 @@ fn render_overview(
     frame.render_widget(status_line, middle);
     frame.render_stateful_widget(list, body, list_state);
 }
+
+/*
+TODO:
+    add color
+    font size?
+    term size?
+    probs can fit everything in one split window
+ */
