@@ -17,6 +17,7 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     style::{Style, Stylize},
+    text::{Line, Text},
     widgets::{Block, Borders, List, ListState, Padding},
 };
 
@@ -39,10 +40,7 @@ impl App {
     pub fn new() -> Self {
         let (tx, rx) = std::sync::mpsc::channel();
         let path = PathBuf::from(r"C:\Users");
-        // more annoying than it should have been, dont fucking touch
-        // REM look into this more. already forgot how move works 4 hours later
         std::thread::spawn(move || {
-            // scan
             let users = match scan_users(&path) {
                 Ok(v) => v,
                 Err(e) => {
@@ -50,9 +48,7 @@ impl App {
                     Vec::new()
                 }
             };
-            //send res through tx
             tx.send(users).ok();
-            // safe to touch again
         });
 
         App {
@@ -134,20 +130,47 @@ impl App {
         if poll(Duration::from_millis(16)).expect("failed to poll events") {
             if let Ok(Event::Key(key)) = read() {
                 if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Esc => self.running = false,
-                        KeyCode::Char('j') => self.list_state.select_next(),
-                        KeyCode::Char('k') => self.list_state.select_previous(),
-                        KeyCode::Enter => self.selected_user = self.list_state.selected(),
-                        KeyCode::Backspace => {
-                            self.selected_user = None;
-                            self.list_state.select(None);
+                    if self.selected_user == None {
+                        // User view
+                        match &key.code {
+                            KeyCode::Esc => self.running = false,
+                            KeyCode::Char('j') => self.list_state.select_next(),
+                            KeyCode::Char('k') => self.list_state.select_previous(),
+                            KeyCode::Enter => self.selected_user = self.list_state.selected(),
+                            KeyCode::Char('S') => self.spawn_thread(),
+                            _ => {}
                         }
-                        _ => {}
+                    } else {
+                        // Detailed view
+                        match key.code {
+                            KeyCode::Esc => self.running = false,
+                            KeyCode::Backspace => {
+                                self.selected_user = None;
+                                self.list_state.select(None);
+                            }
+                            _ => {}
+                        }
                     }
                 }
             }
         }
+    }
+
+    fn spawn_thread(&mut self) {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let path = PathBuf::from(r"C:\Users");
+        std::thread::spawn(move || {
+            let users = match scan_users(&path) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("scan error: {e}");
+                    Vec::new()
+                }
+            };
+            tx.send(users).ok();
+        });
+        self.rx = rx;
+        self.state = AppState::Scanning;
     }
 }
 
@@ -165,10 +188,14 @@ fn render_overview(
     // layout shit
     let layout = Layout::new(
         Direction::Vertical,
-        [Constraint::Percentage(10), Constraint::Percentage(90)],
+        [
+            Constraint::Length(3),
+            Constraint::Percentage(70),
+            Constraint::Percentage(30),
+        ],
     );
 
-    let [status, body] = layout.areas(frame.area());
+    let [status, body, footer] = layout.areas(frame.area());
 
     // just the status line
     let [_top, middle, _bottom] = Layout::new(
@@ -194,23 +221,20 @@ fn render_overview(
 
     let app_state = match state {
         AppState::Idle => format!(" Idle "),
-        AppState::Scanning => {
-            format!(" Scanning  {:^3}", spin[spin_index])
-        }
+        AppState::Scanning => format!("Scanning  {:^3}", spin[spin_index]),
     };
 
     // Widgets
     let status_line = Paragraph::new(app_state)
         .alignment(Alignment::Center)
         .centered()
-        .yellow();
+        .light_cyan();
 
     let list = List::new(items)
         .block(
             Block::default()
                 .borders(Borders::ALL)
                 .title(" User Overview ")
-                .title_bottom(" ↓ <j>  <Esc>  <k> ↑ ")
                 .title_alignment(Alignment::Center)
                 .style(Style::new().yellow())
                 .padding(Padding::symmetric(2, 1)),
@@ -218,12 +242,25 @@ fn render_overview(
         .light_cyan()
         .scroll_padding(1)
         .direction(ratatui::widgets::ListDirection::TopToBottom)
-        .highlight_symbol("> ")
+        .highlight_symbol("-> ")
         .highlight_style(Style::new().reversed())
         .highlight_spacing(ratatui::widgets::HighlightSpacing::Always);
 
+    // Controls
+    let mut controls: Vec<Line> = Vec::new();
+    controls.push(Line::from("<j> ↓↑ <k>"));
+    controls.push(Line::from("<Enter>"));
+    controls.push(Line::from("<Esc> Exit"));
+    controls.push(Line::from("<S> Start Scan"));
+
+    let control_block = Paragraph::new(controls)
+        .block(Block::default().borders(Borders::ALL).title(" Controls "))
+        .centered()
+        .yellow();
+
     frame.render_widget(status_line, middle);
     frame.render_stateful_widget(list, body, list_state);
+    frame.render_widget(control_block, footer);
 }
 
 fn render_detailed(frame: &mut Frame, user: &UserProfile) {
