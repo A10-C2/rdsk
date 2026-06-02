@@ -18,3 +18,16 @@ Run as admin with full access to profiles.
 - Symlinks and junctions are skipped to avoid weird shit
 - Only for windows, only for user profiles
 - Make sure to have rust installed
+
+#### TODO
+- [ ] add color
+- [ ] split main veiw into two instead of two seperate windows
+- [ ] read up on std::sync
+- [ ] list selection
+- [ ] detailed view
+- [ ] font?
+- [ ] font size?
+- [ ] terminal size & pos?
+#### Maybe
+- [ ] full explorer
+- [ ] optimize threading
