@@ -14,10 +14,15 @@ A terminal based disk space analyzer written in rust. Scans user profiles under 
 Run as admin with full access to profiles.
 `cargo run --release`
 
-### Note
+### Notes
 - Symlinks and junctions are skipped to avoid weird shit
 - Only for windows, only for user profiles
-- Make sure to have rust installed
+- Make sure to have [rust installed](https://rust-lang.org/tools/install/)
+
+Also these: 
+- [Ratatui](https://docs.rs/ratatui/latest/ratatui/index.html)
+- [Crossterm](https://docs.rs/crossterm/latest/crossterm/index.html)
+- [Learn this](https://doc.rust-lang.org/std/sync/mpsc/index.html)
 
 #### TODO
 - [ ] add color
@@ -28,6 +33,7 @@ Run as admin with full access to profiles.
 - [ ] font?
 - [ ] font size?
 - [ ] terminal size & pos?
+
 #### Maybe
 - [ ] full explorer
 - [ ] optimize threading
