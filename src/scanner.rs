@@ -69,10 +69,6 @@ pub fn scan_users(path: &Path) -> Result<Vec<UserProfile>, Box<dyn std::error::E
         let name = filename.file_name().into_string().unwrap();
         let is_dir = filename.file_type()?.is_dir();
 
-        if !is_dir {
-            continue;
-        }
-
         let mut user = UserProfile::new(name);
 
         // println!("User: {:#?}", &user);
@@ -82,6 +78,10 @@ pub fn scan_users(path: &Path) -> Result<Vec<UserProfile>, Box<dyn std::error::E
         // Total Size
         let total_size = scan_directory(&full_path);
         user.total_size = total_size;
+
+        if !is_dir {
+            continue;
+        }
 
         // appdata_local
         let appdata_local_path = full_path.join(Path::new(r"AppData\Local\"));

@@ -7,15 +7,16 @@ use crate::helpers::format_number;
 use crate::scanner::{UserProfile, scan_users};
 use crossterm::{
     ExecutableCommand,
-    event::{Event, KeyCode, KeyEvent, KeyEventKind, poll, read}, // don't forget add the key press check
+    event::{Event, KeyCode, KeyEventKind, poll, read}, // don't forget add the key press check
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::layout::{Alignment, Margin}; // will i ever use margin, who knows
+use ratatui::layout::Alignment;
 use ratatui::widgets::Paragraph;
 use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
+    style::{Style, Stylize},
     widgets::{Block, Borders, List, ListState, Padding},
 };
 
@@ -24,15 +25,9 @@ pub enum AppState {
     Scanning,
 }
 
-pub enum View {
-    Overview,
-    Detailed,
-}
-
 pub struct App {
     running: bool,
     state: AppState,
-    current_view: View,
     users: Vec<UserProfile>,
     selected_user: Option<usize>,
     list_state: ListState,
@@ -63,7 +58,6 @@ impl App {
         App {
             running: true,
             state: AppState::Scanning,
-            current_view: View::Overview,
             users: Vec::new(),
             selected_user: None,
             list_state: ListState::default(),
@@ -85,11 +79,13 @@ impl App {
             if !self.running {
                 break;
             }
+
             // handle events
-            self.handle_global_input();
+            self.handle_events();
+
             // render
-            match self.current_view {
-                View::Overview => {
+            match self.selected_user {
+                None => {
                     let users = &self.users;
                     let list_state = &mut self.list_state;
                     let state = &self.state;
@@ -98,10 +94,11 @@ impl App {
                         render_overview(frame, users, list_state, state, current_frame)
                     })?;
                 }
-                View::Detailed => {
-                    terminal.draw(|frame| self.render_detailed(frame))?;
+                Some(n) => {
+                    terminal.draw(|frame| render_detailed(frame, &self.users[n]))?;
                 }
             }
+
             // updates
             match self.state {
                 AppState::Idle => {} // Done
@@ -116,6 +113,7 @@ impl App {
                     Err(TryRecvError::Empty) => {}
                 },
             }
+
             // fps count
             // dont forget that spinner is directly tied to current_frame
             self.current_frame += 1;
@@ -132,40 +130,24 @@ impl App {
         Ok(())
     }
 
-    fn handle_global_input(&mut self) {
-        // only to escape and close program from any menu
+    fn handle_events(&mut self) {
         if poll(Duration::from_millis(16)).expect("failed to poll events") {
             if let Ok(Event::Key(key)) = read() {
-                match key.code {
-                    KeyCode::Esc => self.running = false,
-                    KeyCode::Char('1') => self.current_view = View::Overview,
-                    KeyCode::Char('2') => self.current_view = View::Detailed,
-                    _ => {}
+                if key.kind == KeyEventKind::Press {
+                    match key.code {
+                        KeyCode::Esc => self.running = false,
+                        KeyCode::Char('j') => self.list_state.select_next(),
+                        KeyCode::Char('k') => self.list_state.select_previous(),
+                        KeyCode::Enter => self.selected_user = self.list_state.selected(),
+                        KeyCode::Backspace => {
+                            self.selected_user = None;
+                            self.list_state.select(None);
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
-    }
-
-    fn handle_input(&mut self) {
-        // real input handler
-        // update lol nevermind
-        todo!();
-    }
-
-    // probably dont need this shit
-    fn render_detailed(&self, frame: &mut Frame) {
-        let layout = Layout::new(
-            Direction::Horizontal,
-            [Constraint::Percentage(30), Constraint::Percentage(70)],
-        );
-        let [left, right] = layout.areas(frame.area());
-
-        let blockLeft = Block::default().borders(Borders::ALL);
-        let blockRight = Block::default().borders(Borders::ALL);
-        let border = Block::bordered().padding(Padding::proportional(1));
-
-        frame.render_widget(blockLeft, left);
-        frame.render_widget(blockRight, right);
     }
 }
 
@@ -180,6 +162,7 @@ fn render_overview(
     let spin = [r"/", r"-", r"\", r"|"];
     let spin_index = current_frame / 10 % spin.len();
 
+    // layout shit
     let layout = Layout::new(
         Direction::Vertical,
         [Constraint::Percentage(10), Constraint::Percentage(90)],
@@ -187,6 +170,7 @@ fn render_overview(
 
     let [status, body] = layout.areas(frame.area());
 
+    // just the status line
     let [_top, middle, _bottom] = Layout::new(
         Direction::Vertical,
         [
@@ -197,13 +181,14 @@ fn render_overview(
     )
     .areas(status);
 
+    // List shit
     // before investing in $rope, look here
     let items: Vec<String> = users
         .iter()
         .map(|u| {
             let username = u.username.to_string();
             let total_size = format_number(u.total_size);
-            format!("{:<10} {:<4}", username, total_size)
+            format!("{:<20}\t{:<4}", username, total_size) // here retard
         })
         .collect();
 
@@ -214,29 +199,77 @@ fn render_overview(
         }
     };
 
+    // Widgets
     let status_line = Paragraph::new(app_state)
         .alignment(Alignment::Center)
-        .centered();
+        .centered()
+        .yellow();
 
     let list = List::new(items)
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(" List ")
+                .title(" User Overview ")
+                .title_bottom(" ↓ <j>  <Esc>  <k> ↑ ")
+                .title_alignment(Alignment::Center)
+                .style(Style::new().yellow())
                 .padding(Padding::symmetric(2, 1)),
         )
+        .light_cyan()
+        .scroll_padding(1)
         .direction(ratatui::widgets::ListDirection::TopToBottom)
-        .highlight_symbol(">")
+        .highlight_symbol("> ")
+        .highlight_style(Style::new().reversed())
         .highlight_spacing(ratatui::widgets::HighlightSpacing::Always);
 
     frame.render_widget(status_line, middle);
     frame.render_stateful_widget(list, body, list_state);
 }
 
-/*
-TODO:
-    add color
-    font size?
-    term size?
-    probs can fit everything in one split window
- */
+fn render_detailed(frame: &mut Frame, user: &UserProfile) {
+    let username = user.username.clone();
+    let total = format_number(user.total_size);
+    let appdata_local = format_number(user.appdata_local);
+    let appdata_roaming = format_number(user.appdata_roaming);
+    let appdata_local_temp = format_number(user.appdata_local_temp);
+    let desktop = format_number(user.desktop);
+    let documents = format_number(user.documents);
+    let downloads = format_number(user.downloads);
+    let teams_cache = format_number(user.teams_cache);
+    let other = format_number(user.other);
+
+    let text = format!(
+        "Username: {:^10}\n
+    Total Size: {:<5}\n
+    AppData Local: {:<5}\n
+    AppData Roaming: {:<5}\n
+    AppData Local Temp: {:<5}\n
+    Desktop: {:<5}\n
+    Documents: {:<5}\n
+    Downloads: {:<5}\n
+    Teams Cache: {:<5}\n
+    Other: {:<5}",
+        username,
+        total,
+        appdata_local,
+        appdata_roaming,
+        appdata_local_temp,
+        desktop,
+        documents,
+        downloads,
+        teams_cache,
+        other
+    );
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Detailed View ")
+        .title_bottom(" <Backspace> ")
+        .title_alignment(Alignment::Center)
+        .padding(Padding::symmetric(1, 2))
+        .style(Style::new().light_cyan());
+
+    let body = Paragraph::new(text).block(block);
+
+    frame.render_widget(body, frame.area())
+}
