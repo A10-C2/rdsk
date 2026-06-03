@@ -1,6 +1,6 @@
 use super::app::AppState;
 use crate::helpers::format_number;
-use crate::scanner::UserProfile;
+use crate::scanner::{Listable, UserProfile};
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout},
@@ -9,9 +9,9 @@ use ratatui::{
     widgets::{Block, Borders, List, ListState, Padding, Paragraph},
 };
 
-pub fn render_overview(
+pub fn render_overview<T: Listable>(
     frame: &mut Frame,
-    users: &Vec<UserProfile>,
+    users: &Vec<T>,
     list_state: &mut ListState,
     state: &AppState,
     current_frame: &usize,
@@ -48,8 +48,8 @@ pub fn render_overview(
     let items: Vec<String> = users
         .iter()
         .map(|u| {
-            let username = u.username.to_string();
-            let total_size = format_number(u.total_size);
+            let username = u.name();
+            let total_size = format_number(u.size());
             format!("{:<30}\t\t{:<4}", username, total_size) // here retard
         })
         .collect();

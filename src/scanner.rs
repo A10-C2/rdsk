@@ -1,5 +1,34 @@
+//! Handles all filesystem scanning logic
+//! Provides directory size calculation and Windows users profile scanning.
 use std::fs;
 use std::path::Path;
+
+pub trait Listable {
+    fn name(&self) -> String;
+    fn size(&self) -> u64;
+}
+
+#[derive(Debug)]
+pub struct DirectoryEntry {
+    pub name: String,
+    pub total_size: u64,
+}
+
+impl DirectoryEntry {
+    pub fn new(name: String, total_size: u64) -> Self {
+        DirectoryEntry { name, total_size }
+    }
+}
+
+impl Listable for DirectoryEntry {
+    fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    fn size(&self) -> u64 {
+        self.total_size
+    }
+}
 
 #[derive(Debug)]
 pub struct UserProfile {
@@ -34,6 +63,24 @@ impl UserProfile {
     }
 }
 
+impl Listable for UserProfile {
+    fn name(&self) -> String {
+        self.username.clone()
+    }
+
+    fn size(&self) -> u64 {
+        self.total_size
+    }
+}
+
+/// Scans given directory and returns total size in bytes. Symlinks are skipped during the scan. If a directory is found, recursivly scan it.
+///  The size in bytes of all files inside of the directory are added together and returned.
+///
+/// # Arguments
+/// * `path` - Root path to scan. Accpets any std::Path
+///
+/// # Errors
+/// Will return `0` if fs::read_dir() fails.
 pub fn scan_directory(path: &Path) -> u64 {
     let entries = match fs::read_dir(path) {
         Ok(e) => e,
@@ -62,6 +109,15 @@ pub fn scan_directory(path: &Path) -> u64 {
     total
 }
 
+/// Scans C:\Users and builds a UserProfile for each user directory,
+/// calculating sizes for common folders like AppData, Downloads, and OneDrive.
+/// `C:\Users\` is hardcoded in when building the full path.
+///
+/// # Arguments
+/// * `path` - Root path to scan, typically `C:\Users`, but will accept any std::Path
+///
+/// # Errors
+/// Returns an error if the root path cannot be read.
 pub fn scan_users(path: &Path) -> Result<Vec<UserProfile>, Box<dyn std::error::Error>> {
     let entries = fs::read_dir(path)?;
     let mut users: Vec<UserProfile> = vec![];
