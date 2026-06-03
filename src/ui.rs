@@ -273,6 +273,7 @@ fn render_detailed(frame: &mut Frame, user: &UserProfile) {
     let documents = format_number(user.documents);
     let downloads = format_number(user.downloads);
     let teams_cache = format_number(user.teams_cache);
+    let one_drive = format_number(user.onedrive);
     let other = format_number(user.other);
 
     let text = format!(
@@ -285,6 +286,7 @@ fn render_detailed(frame: &mut Frame, user: &UserProfile) {
     Documents: {:<5}\n
     Downloads: {:<5}\n
     Teams Cache: {:<5}\n
+    Onedrive: {:<5}\n
     Other: {:<5}",
         username,
         total,
@@ -295,6 +297,7 @@ fn render_detailed(frame: &mut Frame, user: &UserProfile) {
         documents,
         downloads,
         teams_cache,
+        one_drive,
         other
     );
 

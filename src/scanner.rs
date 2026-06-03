@@ -12,6 +12,7 @@ pub struct UserProfile {
     pub documents: u64,
     pub desktop: u64,
     pub downloads: u64,
+    pub onedrive: u64,
     pub other: u64,
 }
 
@@ -27,6 +28,7 @@ impl UserProfile {
             documents: 0,
             desktop: 0,
             downloads: 0,
+            onedrive: 0,
             other: 0,
         }
     }
@@ -111,6 +113,10 @@ pub fn scan_users(path: &Path) -> Result<Vec<UserProfile>, Box<dyn std::error::E
         let appdata_temp = full_path.join(Path::new(r"Desktop"));
         user.desktop = scan_directory(&appdata_temp);
 
+        // Onedrive
+        let onedrive = full_path.join(Path::new(r"Onedrive\"));
+        user.onedrive = scan_directory(&onedrive);
+
         // Other
         let other_data = user.total_size
             - user.appdata_local
@@ -119,7 +125,8 @@ pub fn scan_users(path: &Path) -> Result<Vec<UserProfile>, Box<dyn std::error::E
             - user.teams_cache
             - user.documents
             - user.downloads
-            - user.desktop;
+            - user.desktop
+            - user.onedrive;
         user.other = other_data;
 
         users.push(user);
