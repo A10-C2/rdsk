@@ -5,6 +5,7 @@ A terminal based disk space analyzer written in rust. Scans user profiles under 
 - Appdata roaming
 - Appdata temp
 - Teams cache
+- Onedrive (Generic Onedrive, not sharpoint/enterprise)
 - Documents
 - Downloads
 - Desktop
@@ -26,10 +27,10 @@ Also these:
 
 #### TODO
 - [ ] add color
-- [ ] split main veiw into two instead of two seperate windows
+- [x] split main veiw into two instead of two seperate windows
 - [ ] read up on std::sync
-- [ ] list selection
-- [ ] detailed view
+- [x] list selection
+- [x] detailed view
 - [ ] font?
 - [ ] font size?
 - [ ] terminal size & pos?
