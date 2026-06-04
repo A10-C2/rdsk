@@ -21,6 +21,11 @@ pub enum Mode {
     Explorer,
 }
 
+pub enum ScanResult {
+    Users(Vec<UserProfile>),
+    Children(Vec<DirectoryEntry>),
+}
+
 pub struct App {
     pub running: bool,
     pub mode: Mode,
@@ -28,7 +33,7 @@ pub struct App {
     pub users: Vec<UserProfile>,
     pub selected_user: Option<usize>,
     pub list_state: ListState,
-    pub rx: Receiver<Vec<UserProfile>>,
+    pub rx: Receiver<ScanResult>,
     pub current_frame: usize,
     pub current_dir: PathBuf,
     pub children: Vec<DirectoryEntry>,
@@ -50,7 +55,7 @@ impl App {
                     Vec::new()
                 }
             };
-            tx.send(users).ok();
+            tx.send(ScanResult::Users(users)).ok();
         });
 
         App {
@@ -129,15 +134,19 @@ impl App {
 
                 // updates
                 match self.state {
-                    AppState::Idle => {} // Done scanning
+                    AppState::Idle => {}
                     AppState::Scanning => match self.rx.try_recv() {
-                        Ok(users) => {
+                        Ok(ScanResult::Users(users)) => {
                             self.state = AppState::Idle;
                             self.users = users;
                         }
-                        Err(TryRecvError::Disconnected) => {
-                            eprint!("error: {}", TryRecvError::Disconnected)
+                        Ok(ScanResult::Children(children)) => {
+                            self.state = AppState::Idle;
+                            self.children = children;
+                            self.list_state.select(None);
                         }
+
+                        Err(TryRecvError::Disconnected) => eprintln!("..."),
                         Err(TryRecvError::Empty) => {}
                     },
                 }
@@ -174,89 +183,83 @@ impl App {
                     Vec::new()
                 }
             };
-            tx.send(users).ok();
+            tx.send(ScanResult::Users(users)).ok();
         });
         self.rx = rx;
         self.state = AppState::Scanning;
     }
 
-    /// Move down a level into the specified directory
+    /// Move down a level into the specified directory. Spawns a thread to proccess scan results.
     /// # Arguments
     /// * `path` - std::path::PathBuf
     /// # Errors
     /// Returns an error if `read_dir` fails to read `path`
-    pub fn descend(&mut self, path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn descend(&mut self, path: PathBuf) {
         self.parent_dir = Some(self.current_dir.clone());
         self.current_dir = path.clone();
-        let children: Vec<DirectoryEntry> = std::fs::read_dir(path)?
-            .flatten()
-            .map(|dir| {
-                let size = scan_directory(&dir.path());
+        self.children = Vec::new(); // clears stale results immedietly
+        self.state = AppState::Scanning;
 
-                let ext = dir
-                    .path()
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("")
-                    .to_string();
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.rx = rx;
 
-                let stem = dir
-                    .path()
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("")
-                    .to_string();
-
-                let name = if ext.is_empty() {
-                    stem
-                } else {
-                    format!("{}.{}", stem, ext)
-                };
-                DirectoryEntry::new(name, size)
-            })
-            .collect();
-        self.children = children;
-        Ok(())
+        std::thread::spawn(move || {
+            let children = std::fs::read_dir(&path)
+                .into_iter()
+                .flatten()
+                .flatten()
+                .map(|dir| {
+                    let name = dir.file_name().into_string().unwrap_or_default();
+                    let size = scan_directory(&dir.path());
+                    DirectoryEntry::new(name, size)
+                })
+                .collect();
+            tx.send(ScanResult::Children(children)).ok();
+        });
     }
 
     /// Move back into the parent directory. Then rescan and update children, current_dir, and parent_dir
-    pub fn ascend(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn ascend(&mut self) {
+        let path = match &self.parent_dir {
+            Some(dir) => dir.to_path_buf(),
+            None => PathBuf::from(r"C:\"),
+        };
+
+        self.parent_dir = path.parent().map(|p| p.to_path_buf());
+        self.current_dir = path.clone();
+        self.children = Vec::new();
         self.state = AppState::Scanning;
-        match &self.parent_dir {
-            Some(dir) => {
-                let current_dir = dir.to_path_buf();
-                self.current_dir = current_dir;
 
-                let children: Vec<DirectoryEntry> = std::fs::read_dir(dir)?
-                    .flatten()
-                    .map(|dir| {
-                        let name = dir.file_name().into_string().unwrap();
-                        let size = scan_directory(&dir.path());
-                        DirectoryEntry::new(name, size)
-                    })
-                    .collect();
-                self.children = children;
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.rx = rx;
 
-                self.parent_dir = dir.parent().map(|p| p.to_path_buf());
-            }
-            None => {
-                self.descend(PathBuf::from(r"C:\")).ok(); // deff wont leave this here forever
-            }
-        }
-        self.state = AppState::Idle;
-        Ok(())
+        std::thread::spawn(move || {
+            let children = std::fs::read_dir(&path)
+                .into_iter()
+                .flatten()
+                .flatten()
+                .map(|dir| {
+                    let name = dir.file_name().into_string().unwrap_or_default();
+                    let size = scan_directory(&dir.path());
+                    DirectoryEntry::new(name, size)
+                })
+                .collect();
+            tx.send(ScanResult::Children(children)).ok();
+        });
     }
 
     pub fn toggle_mode(&mut self) {
-        self.state = AppState::Scanning;
         match self.mode {
-            Mode::Explorer => self.mode = Mode::UserView,
+            Mode::Explorer => {
+                self.mode = Mode::UserView;
+                self.descend(PathBuf::from(r"C:\Users"));
+            }
+
             Mode::UserView => {
                 self.mode = Mode::Explorer;
                 let cd = std::env::current_dir().unwrap_or_default().to_path_buf();
-                self.descend(cd).ok();
+                self.descend(cd);
             }
         }
-        self.state = AppState::Idle;
     }
 }

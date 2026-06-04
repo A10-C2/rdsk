@@ -18,11 +18,11 @@ pub fn handle_events(app: &mut App) {
                                 let dir = &app.children[dir_index];
                                 let path = app.current_dir.join(dir.name.clone().to_string());
                                 if path.is_dir() {
-                                    app.descend(path).unwrap();
+                                    app.descend(path);
                                 }
                             }
                         }
-                        KeyCode::Backspace => app.ascend().unwrap(),
+                        KeyCode::Backspace => app.ascend(),
                         KeyCode::Tab => app.toggle_mode(),
                         _ => {}
                     },

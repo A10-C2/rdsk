@@ -25,9 +25,9 @@ pub fn render_overview<T: Listable>(
     let layout = Layout::new(
         Direction::Vertical,
         [
-            Constraint::Length(3),
-            Constraint::Fill(1),
-            Constraint::Length(6),
+            Constraint::Length(3), // status
+            Constraint::Fill(1),   // body
+            Constraint::Length(6), // controls
         ],
     );
 
@@ -61,16 +61,16 @@ pub fn render_overview<T: Listable>(
     };
 
     // Widgets
-    // Status
+    // Status line
     let status_line = match mode {
         Mode::Explorer => Paragraph::new(app_state)
             .alignment(Alignment::Center)
             .centered()
-            .style(Style::new().light_blue()),
+            .style(Style::new().light_yellow()),
         Mode::UserView => Paragraph::new(app_state)
             .alignment(Alignment::Center)
             .centered()
-            .style(Style::new().light_blue()),
+            .style(Style::new().light_cyan()),
     };
 
     // List
@@ -90,6 +90,7 @@ pub fn render_overview<T: Listable>(
             .highlight_symbol("-> ")
             .highlight_style(Style::new().reversed())
             .highlight_spacing(ratatui::widgets::HighlightSpacing::Always),
+
         Mode::UserView => List::new(items)
             .block(
                 Block::default()
@@ -108,17 +109,22 @@ pub fn render_overview<T: Listable>(
     };
 
     // Controls
-
     let control_block = match mode {
         Mode::Explorer => {
             let mut controls: Vec<Line> = Vec::new();
             controls.push(Line::from("<j> ↓↑ <k>"));
-            controls.push(Line::from("<S> Start Scan").style(Style::new().dim()));
+            controls.push(Line::from("<Backspace> Ascend"));
+            controls.push(Line::from("<Enter> Descend"));
             controls.push(Line::from("<Tab> Change Mode"));
             controls.push(Line::from("<Esc> Exit"));
 
             Paragraph::new(controls)
-                .block(Block::default().borders(Borders::ALL).title(" Controls "))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .title(" Controls ")
+                        .title_alignment(Alignment::Center),
+                )
                 .centered()
                 .light_blue()
         }
@@ -130,7 +136,12 @@ pub fn render_overview<T: Listable>(
             controls.push(Line::from("<Esc> Exit"));
 
             Paragraph::new(controls)
-                .block(Block::default().borders(Borders::ALL).title(" Controls "))
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .title(" Controls ")
+                        .title_alignment(Alignment::Center),
+                )
                 .centered()
                 .yellow()
         }
@@ -187,7 +198,7 @@ pub fn render_detailed(frame: &mut Frame, user: &UserProfile) {
         .padding(Padding::symmetric(1, 2))
         .style(Style::new().yellow());
 
-    let body = Paragraph::new(text).block(block);
+    let body = Paragraph::new(text).style(Style::new().cyan()).block(block);
 
     frame.render_widget(body, frame.area())
 }
