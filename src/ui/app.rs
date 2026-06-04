@@ -55,7 +55,7 @@ impl App {
 
         App {
             running: true,
-            mode: Mode::Explorer,
+            mode: Mode::UserView,
             state: AppState::Scanning,
             users: Vec::new(),
             selected_user: None,
@@ -94,7 +94,14 @@ impl App {
                 // render
                 match self.mode {
                     Mode::Explorer => {
-                        todo!()
+                        let children = &self.children;
+                        let list_state = &mut self.list_state;
+                        let state = &self.state;
+                        let current_frame = &self.current_frame;
+                        let mode = &self.mode;
+                        terminal.draw(|frame| {
+                            render_overview(frame, children, list_state, state, current_frame, mode)
+                        })?;
                     }
                     Mode::UserView => match self.selected_user {
                         None => {
@@ -102,8 +109,16 @@ impl App {
                             let list_state = &mut self.list_state;
                             let state = &self.state;
                             let current_frame = &self.current_frame;
+                            let mode = &self.mode;
                             terminal.draw(|frame| {
-                                render_overview(frame, users, list_state, state, current_frame)
+                                render_overview(
+                                    frame,
+                                    users,
+                                    list_state,
+                                    state,
+                                    current_frame,
+                                    mode,
+                                )
                             })?;
                         }
                         Some(n) => {
@@ -176,8 +191,27 @@ impl App {
         let children: Vec<DirectoryEntry> = std::fs::read_dir(path)?
             .flatten()
             .map(|dir| {
-                let name = dir.file_name().into_string().unwrap();
                 let size = scan_directory(&dir.path());
+
+                let ext = dir
+                    .path()
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                let stem = dir
+                    .path()
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                let name = if ext.is_empty() {
+                    stem
+                } else {
+                    format!("{}.{}", stem, ext)
+                };
                 DirectoryEntry::new(name, size)
             })
             .collect();
@@ -187,6 +221,7 @@ impl App {
 
     /// Move back into the parent directory. Then rescan and update children, current_dir, and parent_dir
     pub fn ascend(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.state = AppState::Scanning;
         match &self.parent_dir {
             Some(dir) => {
                 let current_dir = dir.to_path_buf();
@@ -204,8 +239,24 @@ impl App {
 
                 self.parent_dir = dir.parent().map(|p| p.to_path_buf());
             }
-            None => {}
+            None => {
+                self.descend(PathBuf::from(r"C:\")).ok(); // deff wont leave this here forever
+            }
         }
+        self.state = AppState::Idle;
         Ok(())
+    }
+
+    pub fn toggle_mode(&mut self) {
+        self.state = AppState::Scanning;
+        match self.mode {
+            Mode::Explorer => self.mode = Mode::UserView,
+            Mode::UserView => {
+                self.mode = Mode::Explorer;
+                let cd = std::env::current_dir().unwrap_or_default().to_path_buf();
+                self.descend(cd).ok();
+            }
+        }
+        self.state = AppState::Idle;
     }
 }

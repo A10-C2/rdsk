@@ -1,4 +1,4 @@
-use super::app::AppState;
+use super::app::{AppState, Mode};
 use crate::helpers::format_number;
 use crate::scanner::{Listable, UserProfile};
 use ratatui::{
@@ -15,6 +15,7 @@ pub fn render_overview<T: Listable>(
     list_state: &mut ListState,
     state: &AppState,
     current_frame: &usize,
+    mode: &Mode,
 ) {
     // spinner stuff
     let spin = [r"/", r"-", r"\", r"|"];
@@ -60,38 +61,80 @@ pub fn render_overview<T: Listable>(
     };
 
     // Widgets
-    let status_line = Paragraph::new(app_state)
-        .alignment(Alignment::Center)
-        .centered()
-        .light_cyan();
+    // Status
+    let status_line = match mode {
+        Mode::Explorer => Paragraph::new(app_state)
+            .alignment(Alignment::Center)
+            .centered()
+            .style(Style::new().light_blue()),
+        Mode::UserView => Paragraph::new(app_state)
+            .alignment(Alignment::Center)
+            .centered()
+            .style(Style::new().light_blue()),
+    };
 
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" User Overview ")
-                .title_alignment(Alignment::Center)
-                .style(Style::new().yellow())
-                .padding(Padding::symmetric(2, 1)),
-        )
-        .light_cyan()
-        .scroll_padding(1)
-        .direction(ratatui::widgets::ListDirection::TopToBottom)
-        .highlight_symbol("-> ")
-        .highlight_style(Style::new().reversed())
-        .highlight_spacing(ratatui::widgets::HighlightSpacing::Always);
+    // List
+    let list = match mode {
+        Mode::Explorer => List::new(items)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Explorer ")
+                    .title_alignment(Alignment::Center)
+                    .style(Style::new().light_blue())
+                    .padding(Padding::symmetric(2, 1)),
+            )
+            .light_cyan()
+            .scroll_padding(1)
+            .direction(ratatui::widgets::ListDirection::TopToBottom)
+            .highlight_symbol("-> ")
+            .highlight_style(Style::new().reversed())
+            .highlight_spacing(ratatui::widgets::HighlightSpacing::Always),
+        Mode::UserView => List::new(items)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" User Overview ")
+                    .title_alignment(Alignment::Center)
+                    .style(Style::new().yellow())
+                    .padding(Padding::symmetric(2, 1)),
+            )
+            .light_cyan()
+            .scroll_padding(1)
+            .direction(ratatui::widgets::ListDirection::TopToBottom)
+            .highlight_symbol("-> ")
+            .highlight_style(Style::new().reversed())
+            .highlight_spacing(ratatui::widgets::HighlightSpacing::Always),
+    };
 
     // Controls
-    let mut controls: Vec<Line> = Vec::new();
-    controls.push(Line::from("<j> ↓↑ <k>"));
-    controls.push(Line::from("<Enter>"));
-    controls.push(Line::from("<Esc> Exit"));
-    controls.push(Line::from("<S> Start Scan"));
 
-    let control_block = Paragraph::new(controls)
-        .block(Block::default().borders(Borders::ALL).title(" Controls "))
-        .centered()
-        .yellow();
+    let control_block = match mode {
+        Mode::Explorer => {
+            let mut controls: Vec<Line> = Vec::new();
+            controls.push(Line::from("<j> ↓↑ <k>"));
+            controls.push(Line::from("<S> Start Scan").style(Style::new().dim()));
+            controls.push(Line::from("<Tab> Change Mode"));
+            controls.push(Line::from("<Esc> Exit"));
+
+            Paragraph::new(controls)
+                .block(Block::default().borders(Borders::ALL).title(" Controls "))
+                .centered()
+                .light_blue()
+        }
+        Mode::UserView => {
+            let mut controls: Vec<Line> = Vec::new();
+            controls.push(Line::from("<j> ↓↑ <k>"));
+            controls.push(Line::from("<S> Start Scan"));
+            controls.push(Line::from("<Tab> Change Mode"));
+            controls.push(Line::from("<Esc> Exit"));
+
+            Paragraph::new(controls)
+                .block(Block::default().borders(Borders::ALL).title(" Controls "))
+                .centered()
+                .yellow()
+        }
+    };
 
     frame.render_widget(status_line, middle);
     frame.render_stateful_widget(list, body, list_state);
