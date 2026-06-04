@@ -16,7 +16,7 @@ pub fn handle_events(app: &mut App) {
                         KeyCode::Enter => {
                             if let Some(dir_index) = app.list_state.selected() {
                                 let dir = &app.children[dir_index];
-                                let path = app.current_dir.join(dir.name.clone());
+                                let path = app.current_dir.join(dir.name.clone().to_string());
                                 if path.is_dir() {
                                     app.descend(path).unwrap();
                                 }
