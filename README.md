@@ -34,15 +34,13 @@ Also these:
 - [Learn this](https://doc.rust-lang.org/std/sync/mpsc/index.html)
 
 #### TODO
+- [ ] speed up scans
+- [ ] fix weird toggle bug
+#### Done
 - [x] add color
 - [x] split main veiw into two instead of two seperate windows
 - [x] read up on std::sync
 - [x] list selection
 - [x] detailed view
-- [ ] font?
-- [ ] font size?
-- [ ] terminal size & pos?
-
-#### Maybe
 - [x] full explorer
-- [ ] optimize threading
+- [x] threading
