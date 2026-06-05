@@ -31,16 +31,3 @@ Run as admin with full access to profiles.
 Also these: 
 - [Ratatui](https://docs.rs/ratatui/latest/ratatui/index.html)
 - [Crossterm](https://docs.rs/crossterm/latest/crossterm/index.html)
-- [Learn this](https://doc.rust-lang.org/std/sync/mpsc/index.html)
-
-#### TODO
-- [ ] speed up scans
-- [ ] fix weird toggle bug
-#### Done
-- [x] add color
-- [x] split main veiw into two instead of two seperate windows
-- [x] read up on std::sync
-- [x] list selection
-- [x] detailed view
-- [x] full explorer
-- [x] threading
